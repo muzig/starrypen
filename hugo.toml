@@ -1,4 +1,4 @@
-baseURL = 'https://example.org/'
+baseURL = 'https://github.com'
 languageCode = 'en-us'
-title = 'Muzig Blog'
+title = 'StarryPen | 探索思维的星辰大海'
 theme = 'stack'
