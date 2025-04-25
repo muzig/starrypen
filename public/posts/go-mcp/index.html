@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+    <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="什么是 MCP？ MCP（Model Context Protocol）是一个用于编写模型上下文协议客户端和服务器的 SDK。\n今天想和大家分享一个有趣的发现 —— 官方 Go 语言工具链中的 MCP（Model Context Protocol）实现。这是一个正在开发中的原型系统，旨在探索客户端/服务器生命周期和绑定的设计空间。\n核心特性 客户端/服务器架构\n提供了 NewClient 和 NewServer 接口用于创建 MCP 客户端或服务器 支持通过 Transport 实例连接对等端 灵活的特性扩展机制，可以通过 Add&lt;feature&gt; 方法添加新功能 工具系统\n实现了一个强大的工具定义和处理系统 支持通过泛型优雅地定义新工具 内置 JSON Schema 支持，用于请求验证 传输层抽象\n支持多种传输协议 包含 SSE（Server-Sent Events）实现 计划支持 Streamable HTTP 传输 技术亮点 1. 优雅的工具定义 func MakeTool[TReq any](name, description string, handler func(context.Context, *ClientConnection, TReq) ([]Content, error)) *Tool 2. JSON Schema 集成 包中集成了 JSON Schema 支持，可以：\n自动从 Go 类型生成 Schema 进行请求验证 支持客户端和服务器端验证（规划中） 未来规划 从代码中的 TODO 注释可以看出，还有一些特性正在规划中：\n">
+<title>深度解析：官方 Go 语言工具链中的 MCP（Model Context Protocol）实现</title>
+
+<link rel='canonical' href='http://localhost:1313/posts/go-mcp/'>
+
+<link rel="stylesheet" href="/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css"><meta property='og:title' content="深度解析：官方 Go 语言工具链中的 MCP（Model Context Protocol）实现">
+<meta property='og:description' content="什么是 MCP？ MCP（Model Context Protocol）是一个用于编写模型上下文协议客户端和服务器的 SDK。\n今天想和大家分享一个有趣的发现 —— 官方 Go 语言工具链中的 MCP（Model Context Protocol）实现。这是一个正在开发中的原型系统，旨在探索客户端/服务器生命周期和绑定的设计空间。\n核心特性 客户端/服务器架构\n提供了 NewClient 和 NewServer 接口用于创建 MCP 客户端或服务器 支持通过 Transport 实例连接对等端 灵活的特性扩展机制，可以通过 Add&lt;feature&gt; 方法添加新功能 工具系统\n实现了一个强大的工具定义和处理系统 支持通过泛型优雅地定义新工具 内置 JSON Schema 支持，用于请求验证 传输层抽象\n支持多种传输协议 包含 SSE（Server-Sent Events）实现 计划支持 Streamable HTTP 传输 技术亮点 1. 优雅的工具定义 func MakeTool[TReq any](name, description string, handler func(context.Context, *ClientConnection, TReq) ([]Content, error)) *Tool 2. JSON Schema 集成 包中集成了 JSON Schema 支持，可以：\n自动从 Go 类型生成 Schema 进行请求验证 支持客户端和服务器端验证（规划中） 未来规划 从代码中的 TODO 注释可以看出，还有一些特性正在规划中：\n">
+<meta property='og:url' content='http://localhost:1313/posts/go-mcp/'>
+<meta property='og:site_name' content='StarryPen | 探索思维的星辰大海'>
+<meta property='og:type' content='article'><meta property='article:section' content='Posts' /><meta property='article:published_time' content='2025-04-25T10:09:47&#43;08:00'/><meta property='article:modified_time' content='2025-04-25T10:09:47&#43;08:00'/>
+<meta name="twitter:title" content="深度解析：官方 Go 语言工具链中的 MCP（Model Context Protocol）实现">
+<meta name="twitter:description" content="什么是 MCP？ MCP（Model Context Protocol）是一个用于编写模型上下文协议客户端和服务器的 SDK。\n今天想和大家分享一个有趣的发现 —— 官方 Go 语言工具链中的 MCP（Model Context Protocol）实现。这是一个正在开发中的原型系统，旨在探索客户端/服务器生命周期和绑定的设计空间。\n核心特性 客户端/服务器架构\n提供了 NewClient 和 NewServer 接口用于创建 MCP 客户端或服务器 支持通过 Transport 实例连接对等端 灵活的特性扩展机制，可以通过 Add&lt;feature&gt; 方法添加新功能 工具系统\n实现了一个强大的工具定义和处理系统 支持通过泛型优雅地定义新工具 内置 JSON Schema 支持，用于请求验证 传输层抽象\n支持多种传输协议 包含 SSE（Server-Sent Events）实现 计划支持 Streamable HTTP 传输 技术亮点 1. 优雅的工具定义 func MakeTool[TReq any](name, description string, handler func(context.Context, *ClientConnection, TReq) ([]Content, error)) *Tool 2. JSON Schema 集成 包中集成了 JSON Schema 支持，可以：\n自动从 Go 类型生成 Schema 进行请求验证 支持客户端和服务器端验证（规划中） 未来规划 从代码中的 TODO 注释可以看出，还有一些特性正在规划中：\n">
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column compact"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="Toggle Menu">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/img/avatar_hu14273407569796802435.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/">StarryPen | 探索思维的星辰大海</a></h1>
+            <h2 class="site-description"></h2>
+        </div>
+    </header><ol class="menu" id="main-menu">
+        
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>Dark Mode</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    
+
+            <main class="main full-width">
+    <article class="main-article">
+    <header class="article-header">
+
+    <div class="article-details">
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/posts/go-mcp/">深度解析：官方 Go 语言工具链中的 MCP（Model Context Protocol）实现</a>
+        </h2>
+    
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Apr 25, 2025</time>
+            </div>
+        
+
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+                <time class="article-time--reading">
+                    1 minute read
+                </time>
+            </div>
+        
+    </footer>
+    
+
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="什么是-mcp">什么是 MCP？
+</h2><p>MCP（Model Context Protocol）是一个用于编写模型上下文协议客户端和服务器的 SDK。</p>
+<p>今天想和大家分享一个有趣的发现 —— 官方 Go 语言工具链中的 MCP（Model Context Protocol）实现。这是一个正在开发中的原型系统，旨在探索客户端/服务器生命周期和绑定的设计空间。</p>
+<h2 id="核心特性">核心特性
+</h2><ol>
+<li>
+<p><strong>客户端/服务器架构</strong></p>
+<ul>
+<li>提供了 <code>NewClient</code> 和 <code>NewServer</code> 接口用于创建 MCP 客户端或服务器</li>
+<li>支持通过 <code>Transport</code> 实例连接对等端</li>
+<li>灵活的特性扩展机制，可以通过 <code>Add&lt;feature&gt;</code> 方法添加新功能</li>
+</ul>
+</li>
+<li>
+<p><strong>工具系统</strong></p>
+<ul>
+<li>实现了一个强大的工具定义和处理系统</li>
+<li>支持通过泛型优雅地定义新工具</li>
+<li>内置 JSON Schema 支持，用于请求验证</li>
+</ul>
+</li>
+<li>
+<p><strong>传输层抽象</strong></p>
+<ul>
+<li>支持多种传输协议</li>
+<li>包含 SSE（Server-Sent Events）实现</li>
+<li>计划支持 Streamable HTTP 传输</li>
+</ul>
+</li>
+</ol>
+<h2 id="技术亮点">技术亮点
+</h2><h3 id="1-优雅的工具定义">1. 优雅的工具定义
+</h3><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">MakeTool</span>[<span style="color:#a6e22e">TReq</span> <span style="color:#a6e22e">any</span>](<span style="color:#a6e22e">name</span>, <span style="color:#a6e22e">description</span> <span style="color:#66d9ef">string</span>, 
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">handler</span> <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">context</span>.<span style="color:#a6e22e">Context</span>, <span style="color:#f92672">*</span><span style="color:#a6e22e">ClientConnection</span>, <span style="color:#a6e22e">TReq</span>) ([]<span style="color:#a6e22e">Content</span>, <span style="color:#66d9ef">error</span>)) <span style="color:#f92672">*</span><span style="color:#a6e22e">Tool</span>
+</span></span></code></pre></div><h3 id="2-json-schema-集成">2. JSON Schema 集成
+</h3><p>包中集成了 JSON Schema 支持，可以：</p>
+<ul>
+<li>自动从 Go 类型生成 Schema</li>
+<li>进行请求验证</li>
+<li>支持客户端和服务器端验证（规划中）</li>
+</ul>
+<h2 id="未来规划">未来规划
+</h2><p>从代码中的 TODO 注释可以看出，还有一些特性正在规划中：</p>
+<ol>
+<li>分页支持</li>
+<li>完整的客户端/服务器操作支持</li>
+<li>Streamable HTTP 传输</li>
+<li>多版本协议规范支持</li>
+<li>完善的 JSON Schema 支持</li>
+</ol>
+<h2 id="总结">总结
+</h2><p>MCP 包虽然还处于原型阶段，但已经展现出了优秀的设计理念和实现方案。它的模块化设计、类型安全的接口以及可扩展的架构，都让它成为一个值得关注的项目。</p>
+<p>对于想要深入了解 Go 语言工具链实现，或者需要构建类似系统的开发者来说，MCP 的源码绝对值得一读。它展示了如何在 Go 中构建一个现代化的协议实现，以及如何利用 Go 的最新特性来提供优雅的 API。</p>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+
+    </footer>
+
+
+    
+</article>
+
+    
+
+    
+
+     
+    
+        
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+        2025 StarryPen | 探索思维的星辰大海
+    </section>
+    
+    <section class="powerby">
+        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
+        Theme <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> designed by <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a>
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/ts/main.af3d9acb39e185acea662b92e2b6f051374b097ef893abdd0900d367e748155b.js" defer></script>
+<script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script>
+
+    </body>
+</html>
