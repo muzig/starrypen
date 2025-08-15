@@ -1,6 +1,6 @@
 +++
 date = '2025-04-25T10:09:47+08:00'
-draft = true
+draft = false
 title = '深度解析：官方 Go 语言工具链中的 MCP（Model Context Protocol）实现'
 +++
 
@@ -11,7 +11,6 @@ MCP（Model Context Protocol）是一个用于编写模型上下文协议客户�
 今天想和大家分享一个有趣的发现 —— 官方 Go 语言工具链中的 MCP（Model Context Protocol）实现。这是一个正在开发中的原型系统，旨在探索客户端/服务器生命周期和绑定的设计空间。
 
 ## 核心特性
-
 
 1. **客户端/服务器架构**
    - 提供了 `NewClient` 和 `NewServer` 接口用于创建 MCP 客户端或服务器
@@ -40,6 +39,7 @@ func MakeTool[TReq any](name, description string,
 ### 2. JSON Schema 集成
 
 包中集成了 JSON Schema 支持，可以：
+
 - 自动从 Go 类型生成 Schema
 - 进行请求验证
 - 支持客户端和服务器端验证（规划中）
