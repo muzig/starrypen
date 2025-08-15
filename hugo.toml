@@ -1,4 +1,4 @@
 baseURL = 'https://github.com'
 languageCode = 'en-us'
-title = 'StarryPen | 探索思维的星辰大海'
-theme = 'stack'
+title = 'Welcome to My Blog'
+theme = 'yinyang'
